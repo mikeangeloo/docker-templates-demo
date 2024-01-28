@@ -1,0 +1,88 @@
+# file name: docker-compose.yml
+# this setup may not work correctly in other major versions!!!
+version: "3.3"
+services:
+  db:
+    image: mariadb
+    # name our containers so we can easily reference them
+    container_name: db
+    restart: unless-stopped
+    # if you use mysql version 8 you need PHP to handle
+    #   passwords correctly
+    #command: "--default-authentication-plugin=mysql_native_password"
+    # make sure to add path to env file.
+    # The MYSQL_* will automatically be passed
+    #env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: wordpress_db
+      MYSQL_PASSWORD: root
+    # we are going to save our database data in our file system
+    # using these named volumes will default to somewhere in docker  files on your system
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:6.4.2-php8.1-fpm-alpine
+    # wordpress must wait for a database connection
+    depends_on:
+      - db
+    container_name: wordpress
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      # we are going to save our wordpress data in our file system
+      - ./my-web-site/wp:/var/www/html
+      # we are going to put our custom theme into the themes folder
+      - ./my-web-site/myTheme/:/var/www/html/wp-content/themes/myTheme
+    # make sure to add path to env file
+    #env_file: .env
+    # we refence .env variables like `$MYSQL_USER`
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: root
+      WORDPRESS_DB_NAME: wordpress_db
+
+  webserver:
+    # nginx needs wordpress started first
+    depends_on:
+      - wordpress
+    image: nginx:1.15.12-alpine
+    container_name: webserver
+    restart: unless-stopped
+    # open nginx's ports to access our site!!!
+    # you can of course change your ports for development,
+    #    just make sure you listen to them in nginx
+    ports:
+      - "80:80"
+      - "443:443" # for https later!
+    volumes:
+      # we will also mount wordpress to nginx's
+      #   html folder to easily serve it
+      - ./my-web-site/wp:/var/www/html
+      # we need to add our own nginx-config folder
+      - ./my-web-site/nginx-conf/:/etc/nginx/conf.d # nginx will need the certificate files certbot will create
+      - ./my-web-site/certbotdata:/etc/letsencrypt
+    # networks:
+    #   - app-network
+
+  certbot:
+    depends_on:
+      - webserver
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      # we save our directory of keys on our host server
+      - ./my-web-site/certbotdata:/etc/letsencrypt
+      # we bind our wordpress site to the html root
+      - ./my-web-site/wp:/var/www/html
+    # this command will generate the certificate.
+    # make sure to change your -d and --email flags
+    command: certonly --webroot --webroot-path=/var/www/html --email test@codimex360.com --agree-tos --no-eff-email --keep-until-expiring -d demo.codimex360.com -d www.demo.codimex360.com
+
+volumes:
+  wordpress:
+  dbdata:
+  
