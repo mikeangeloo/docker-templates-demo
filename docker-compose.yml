@@ -80,7 +80,7 @@ services:
       - ./my-web-site/wp:/var/www/html
     # this command will generate the certificate.
     # make sure to change your -d and --email flags
-    command: certonly --webroot --webroot-path=/var/www/html --email test@codimex360.com --agree-tos --no-eff-email --force-renewal -d demo.codimex360.com -d www.demo.codimex360.com
+    command: certonly --webroot --webroot-path=/var/www/html --email test@codimex360.com --agree-tos --no-eff-email --keep-until-expiring -d demo.codimex360.com -d www.demo.codimex360.com
 
 volumes:
   wordpress:                                                                                           
