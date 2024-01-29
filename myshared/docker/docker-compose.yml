@@ -1,30 +1,23 @@
-# file name: docker-compose.yml
-# this setup may not work correctly in other major versions!!!
+# Nombre archivo: docker-compose.yml
 version: "3.3"
 services:
   db:
     image: mariadb
-    # name our containers so we can easily reference them
+    # Nombre de los contenedores para diferenciarlos facilmente
     container_name: db
     restart: unless-stopped
-    # if you use mysql version 8 you need PHP to handle
-    #   passwords correctly
-    #command: "--default-authentication-plugin=mysql_native_password"
-    # make sure to add path to env file.
-    # The MYSQL_* will automatically be passed
-    #env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: wordpress_db
       MYSQL_PASSWORD: root
-    # we are going to save our database data in our file system
-    # using these named volumes will default to somewhere in docker  files on your system
+    # vamos a guardar los datos de nuestra base de datos en nuestro sistema de archivos
+    # el uso de estos volúmenes con nombre se ubicará de forma predeterminada en algún lugar de los archivos acoplables de su sistema
     volumes:
       - dbdata:/var/lib/mysql
 
   wordpress:
     image: wordpress:6.4.2-php8.1-fpm-alpine
-    # wordpress must wait for a database connection
+    # wordpress debe esperar una conexión a la base de datos
     depends_on:
       - db
     container_name: wordpress
@@ -32,13 +25,10 @@ services:
     ports:
       - "9000:9000"
     volumes:
-      # we are going to save our wordpress data in our file system
+      # vamos a guardar nuestra carpeta de wordpress en nuestro sistema de archivos
       - ./my-web-site/wp:/var/www/html
-      # we are going to put our custom theme into the themes folder
+      # vamos a poner nuestro tema personalizado en la carpeta de temas
       - ./my-web-site/myTheme/:/var/www/html/wp-content/themes/myTheme
-    # make sure to add path to env file
-    #env_file: .env
-    # we refence .env variables like `$MYSQL_USER`
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: root
@@ -46,41 +36,25 @@ services:
       WORDPRESS_DB_NAME: wordpress_db
 
   webserver:
-    # nginx needs wordpress started first
+    # nginx necesita que WordPress se inicie primero
     depends_on:
       - wordpress
     image: nginx:1.15.12-alpine
     container_name: webserver
     restart: unless-stopped
-    # open nginx's ports to access our site!!!
-    # you can of course change your ports for development,
-    #    just make sure you listen to them in nginx
+    # abrirmos los puertos de nginx para acceder a nuestro sitio
+    # podemos cambiar nuestros puertos para modo desarrollo
+    # solo debemos asegurarnos de escucharlos en nginx
     ports:
-      - "80:80"
-      - "443:443" # for https later!
+      - "80:80" # para http
+      - "443:443" # para https
     volumes:
-      # we will also mount wordpress to nginx's
-      #   html folder to easily serve it
+      # también montaremos wordpress en nginx
+      # carpeta html para exponerlo
       - ./my-web-site/wp:/var/www/html
-      # we need to add our own nginx-config folder
-      - ./my-web-site/nginx-conf/:/etc/nginx/conf.d # nginx will need the certificate files certbot will create
-      - ./my-web-site/certbotdata:/etc/letsencrypt
-    # networks:
-    #   - app-network
-
-  certbot:
-    depends_on:
-      - webserver
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      # we save our directory of keys on our host server
-      - ./my-web-site/certbotdata:/etc/letsencrypt
-      # we bind our wordpress site to the html root
-      - ./my-web-site/wp:/var/www/html
-    # this command will generate the certificate.
-    # make sure to change your -d and --email flags
-    command: certonly --webroot --webroot-path=/var/www/html --email test@codimex360.com --agree-tos --no-eff-email --keep-until-expiring -d demo.codimex360.com -d www.demo.codimex360.com
+      # agregamos nuestra propia carpeta nginx-config.
+      - ./my-web-site/nginx-conf/:/etc/nginx/conf.d # nginx ocupará estos certificados para el protocolo https
+      - ./my-web-site/certs:/etc/nginx/certs
 
 volumes:
   wordpress:
